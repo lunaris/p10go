@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/lunaris/p10go/messages"
-	"github.com/lunaris/p10go/numerics"
+	"github.com/lunaris/p10go/types"
 )
 
 type P10Client struct {
@@ -17,17 +17,17 @@ type P10Client struct {
 	logger   *slog.Logger
 	conn     net.Conn
 	buf      []byte
-	servers  map[numerics.ServerNumeric]Server
-	clients  map[numerics.ClientID]Client
-	channels map[string]Channel
+	servers  map[types.ServerNumeric]*Server
+	clients  map[types.ClientID]*Client
+	channels map[string]*Channel
 }
 
 type Server struct {
-	Numeric numerics.ServerNumeric
+	Numeric types.ServerNumeric
 }
 
 type Client struct {
-	ID   numerics.ClientID
+	ID   types.ClientID
 	Nick string
 }
 
@@ -40,9 +40,9 @@ func New(ctx context.Context, address string, opts *Options) (*P10Client, error)
 	}
 
 	buf := make([]byte, 1024)
-	servers := make(map[numerics.ServerNumeric]Server)
-	clients := make(map[numerics.ClientID]Client)
-	channels := make(map[string]Channel)
+	servers := make(map[types.ServerNumeric]*Server)
+	clients := make(map[types.ClientID]*Client)
+	channels := make(map[string]*Channel)
 
 	c := &P10Client{
 		ctx:      ctx,
@@ -115,16 +115,22 @@ func (c *P10Client) Receive() ([]messages.Message, error) {
 		ms[i] = m
 
 		switch m := m.(type) {
-		case *messages.Server:
-			c.debug("received SERVER; updating servers", "numeric", m.Numeric)
-			c.servers[m.Numeric] = Server{
-				Numeric: m.Numeric,
-			}
+		case *messages.EndOfBurst:
+			c.debug("received END_OF_BURST; sending acknowledgement", "numeric", m.ServerNumeric)
+			c.Send(&messages.EndOfBurstAcknowledgement{ServerNumeric: "QQ"})
 		case *messages.Nick:
 			c.debug("received NICK; updating clients", "id", m.ClientID, "nick", m.Nick)
-			c.clients[m.ClientID] = Client{
+			c.clients[m.ClientID] = &Client{
 				ID:   m.ClientID,
 				Nick: m.Nick,
+			}
+		case *messages.Ping:
+			c.debug("received PING; sending PONG", "source", m.Source)
+			c.Send(&messages.Pong{Source: "QQ", Target: m.Source})
+		case *messages.Server:
+			c.debug("received SERVER; updating servers", "numeric", m.Numeric)
+			c.servers[m.Numeric] = &Server{
+				Numeric: m.Numeric,
 			}
 		}
 	}

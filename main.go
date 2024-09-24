@@ -37,7 +37,7 @@ func main() {
 		StartTimestamp: time.Now().Unix(),
 		LinkTimestamp:  time.Now().Unix(),
 		Protocol:       messages.J10,
-		Numeric:        "AA",
+		Numeric:        "QQ",
 		MaxConnections: "]]]",
 		Description:    "P10 (Go)",
 	})
@@ -52,5 +52,6 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+
 	}
 }
