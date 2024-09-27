@@ -74,7 +74,7 @@ type Server struct {
 }
 
 func ParseServer(tokens []string) (*Server, error) {
-	if len(tokens) < 8 {
+	if len(tokens) < 9 {
 		return nil, fmt.Errorf("SERVER: expected at least 8 tokens; received %d", len(tokens))
 	}
 
@@ -107,7 +107,9 @@ func ParseServer(tokens []string) (*Server, error) {
 		return nil, fmt.Errorf("SERVER: couldn't parse server numeric and maximum connection count: %w", err)
 	}
 
-	description := lastParameter(tokens[7:])
+	// tokens[7] is an unused placeholder
+
+	description := lastParameter(tokens[8:])
 
 	return &Server{
 		Name:           tokens[1],
@@ -270,8 +272,8 @@ type Burst struct {
 }
 
 func ParseBurst(tokens []string) (*Burst, error) {
-	if len(tokens) < 6 {
-		return nil, fmt.Errorf("BURST: expected at least 7 tokens; received %d", len(tokens))
+	if len(tokens) < 5 {
+		return nil, fmt.Errorf("BURST: expected at least 5 tokens; received %d", len(tokens))
 	}
 
 	serverNumeric, err := types.ParseServerNumeric(tokens[0])
@@ -290,31 +292,32 @@ func ParseBurst(tokens []string) (*Burst, error) {
 		return nil, fmt.Errorf("BURST: couldn't parse created timestamp: %w", err)
 	}
 
-	if tokens[4][0] != '+' {
-		return nil, fmt.Errorf("BURST: expected +; received %c", tokens[4][0])
-	}
-
-	channelModes, err := types.ParseChannelModes(tokens[4][1:])
-	if err != nil {
-		return nil, fmt.Errorf("BURST: couldn't parse channel modes: %w", err)
-	}
-
-	membersIndex := 5
+	membersIndex := 4
+	var channelModes *types.ChannelModes
 	channelLimit := 0
 	channelKey := ""
 
-	if channelModes.Limit {
-		channelLimit, err = strconv.Atoi(tokens[membersIndex])
+	if tokens[4][0] == '+' {
+		channelModes, err = types.ParseChannelModes(tokens[4][1:])
 		if err != nil {
-			return nil, fmt.Errorf("BURST: couldn't parse channel limit: %w", err)
+			return nil, fmt.Errorf("BURST: couldn't parse channel modes: %w", err)
 		}
 
 		membersIndex++
-	}
 
-	if channelModes.Keyed {
-		channelKey = tokens[membersIndex]
-		membersIndex++
+		if channelModes.Limit {
+			channelLimit, err = strconv.Atoi(tokens[membersIndex])
+			if err != nil {
+				return nil, fmt.Errorf("BURST: couldn't parse channel limit: %w", err)
+			}
+
+			membersIndex++
+		}
+
+		if channelModes.Keyed {
+			channelKey = tokens[membersIndex]
+			membersIndex++
+		}
 	}
 
 	members, err := types.ParseChannelMembers(tokens[membersIndex])
@@ -343,14 +346,18 @@ func ParseBurst(tokens []string) (*Burst, error) {
 }
 
 func (b *Burst) String() string {
+	channelModes := ""
 	channelLimit := ""
-	if b.ChannelModes.Limit {
-		channelLimit = fmt.Sprintf(" %d", b.ChannelLimit)
-	}
-
 	channelKey := ""
-	if b.ChannelModes.Keyed {
-		channelKey = fmt.Sprintf(" %s", b.ChannelKey)
+	if b.ChannelModes != nil {
+		channelModes = " +" + b.ChannelModes.String()
+		if b.ChannelModes.Limit {
+			channelLimit = fmt.Sprintf(" %d", b.ChannelLimit)
+		}
+
+		if b.ChannelModes.Keyed {
+			channelKey = fmt.Sprintf(" %s", b.ChannelKey)
+		}
 	}
 
 	members := ""
@@ -367,11 +374,11 @@ func (b *Burst) String() string {
 	}
 
 	return fmt.Sprintf(
-		"%s B %s %d +%s%s%s %s%s",
+		"%s B %s %d%s%s%s %s%s",
 		b.ServerNumeric,
 		b.Channel,
 		b.CreatedTimestamp,
-		b.ChannelModes,
+		channelModes,
 		channelLimit,
 		channelKey,
 		members,
@@ -483,6 +490,37 @@ func ParsePong(tokens []string) (*Pong, error) {
 
 func (p *Pong) String() string {
 	return fmt.Sprintf("%s Z %s", p.Source, p.Target)
+}
+
+type Join struct {
+	ClientID  types.ClientID
+	Channel   string
+	Timestamp int64
+}
+
+func (j *Join) String() string {
+	return fmt.Sprintf("%s J %s %d", j.ClientID, j.Channel, j.Timestamp)
+}
+
+type ChannelUserMode struct {
+	Source  types.ClientID
+	Channel string
+	Add     *types.ChannelUserModes
+	Remove  *types.ChannelUserModes
+	Target  types.ClientID
+}
+
+func (cum *ChannelUserMode) String() string {
+	modes := ""
+	if cum.Add != nil {
+		modes += "+" + cum.Add.String()
+	}
+	if cum.Remove != nil {
+		modes += "-" + cum.Remove.String()
+	}
+
+	// HACK: OM instead of M. Should do this separately.
+	return fmt.Sprintf("%s OM %s %s %s", cum.Source, cum.Channel, modes, cum.Target)
 }
 
 type Unknown struct {

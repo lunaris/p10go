@@ -9,6 +9,7 @@ import (
 
 	"github.com/lunaris/p10go/client"
 	"github.com/lunaris/p10go/messages"
+	"github.com/lunaris/p10go/types"
 )
 
 func main() {
@@ -16,42 +17,65 @@ func main() {
 		Level: slog.LevelDebug,
 	}))
 
-	client, err := client.New(context.Background(), "localhost:4400", &client.Options{
-		Logger: logger,
-	})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer client.Close()
+	c, err := client.New(client.Configuration{
+		Context: context.Background(),
+		Logger:  logger,
 
-	err = client.Send(&messages.Pass{Password: "p10"})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+		ServerAddress: "localhost:4400",
 
-	err = client.Send(&messages.Server{
-		Name:           "p10.localhost",
-		HopCount:       1,
-		StartTimestamp: time.Now().Unix(),
-		LinkTimestamp:  time.Now().Unix(),
-		Protocol:       messages.J10,
-		Numeric:        "QQ",
-		MaxConnections: "]]]",
-		Description:    "P10 (Go)",
+		ClientPassword:    "p10",
+		ClientNumeric:     "QQ",
+		ClientName:        "p10.localhost",
+		ClientDescription: "P10 (Go)",
 	})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	for {
-		_, err := client.Receive()
-		if err != nil {
-			fmt.Println(err)
-			return
+	logger.Info("entering event loop")
+	for e := range c.Events() {
+		switch e.Type {
+		case client.MessageEvent:
+			switch m := e.Message.(type) {
+			case *messages.EndOfBurst:
+				logger.Info("sending Q", "m", m)
+				c.Send(&messages.Nick{
+					ServerNumeric:    "QQ",
+					Nick:             "Q",
+					HopCount:         1,
+					CreatedTimestamp: time.Now().Unix(),
+					MaskUser:         "Q",
+					MaskHost:         "services.p10.localhost",
+					UserModes:        "+i",
+					IP:               "+6n",
+					ClientID: types.ClientID{
+						Server: "QQ",
+						Client: "AAA",
+					},
+					Info: "The Q Bot",
+				})
+				c.Send(&messages.Join{
+					ClientID: types.ClientID{
+						Server: "QQ",
+						Client: "AAA",
+					},
+					Channel:   "#dev",
+					Timestamp: time.Now().Unix(),
+				})
+				c.Send(&messages.ChannelUserMode{
+					Source: types.ClientID{
+						Server: "QQ",
+						Client: "AAA",
+					},
+					Channel: "#dev",
+					Add:     &types.ChannelUserModes{Op: true},
+					Target: types.ClientID{
+						Server: "QQ",
+						Client: "AAA",
+					},
+				})
+			}
 		}
-
 	}
 }
