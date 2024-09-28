@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lunaris/p10go/messages"
-	"github.com/lunaris/p10go/types"
+	"github.com/lunaris/p10go/pkg/messages"
+	"github.com/lunaris/p10go/pkg/types"
 )
 
 type P10Client struct {

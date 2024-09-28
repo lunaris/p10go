@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lunaris/p10go/types"
+	"github.com/lunaris/p10go/pkg/types"
 )
 
 type Message interface {
@@ -48,7 +48,7 @@ type Pass struct {
 
 func ParsePass(tokens []string) (*Pass, error) {
 	if len(tokens) != 2 {
-		return nil, fmt.Errorf("PASS: expected 2 tokens; recevied %d", len(tokens))
+		return nil, fmt.Errorf("PASS: expected 2 tokens; received %d", len(tokens))
 	}
 
 	if tokens[0] != "PASS" {
@@ -75,7 +75,7 @@ type Server struct {
 
 func ParseServer(tokens []string) (*Server, error) {
 	if len(tokens) < 9 {
-		return nil, fmt.Errorf("SERVER: expected at least 8 tokens; received %d", len(tokens))
+		return nil, fmt.Errorf("SERVER: expected at least 9 tokens; received %d", len(tokens))
 	}
 
 	if tokens[0] != "SERVER" {
@@ -125,7 +125,7 @@ func ParseServer(tokens []string) (*Server, error) {
 
 func (s *Server) String() string {
 	return fmt.Sprintf(
-		"SERVER %s %d %d %d %s %s%s :%s",
+		"SERVER %s %d %d %d %s %s%s 0 :%s",
 		s.Name,
 		s.HopCount,
 		s.StartTimestamp,
@@ -162,7 +162,7 @@ type Nick struct {
 	CreatedTimestamp int64
 	MaskUser         string
 	MaskHost         string
-	UserModes        string
+	UserModes        types.UserModes
 	Account          string
 	IP               string
 	ClientID         types.ClientID
@@ -200,20 +200,25 @@ func ParseNick(tokens []string) (*Nick, error) {
 
 	ipIndex := 7
 
-	userModes := ""
+	var userModes types.UserModes
 	account := ""
 
 	if tokens[ipIndex][0] == '+' {
-		userModes = tokens[ipIndex]
+		userModes, err = types.ParseUserModes(tokens[ipIndex][1:])
+		if err != nil {
+			return nil, fmt.Errorf("NICK: couldn't parse user modes: %w", err)
+		}
+
 		ipIndex++
 
-		if strings.ContainsRune(userModes, 'r') {
+		if userModes.Account {
 			account = tokens[ipIndex]
 			ipIndex++
 		}
 	}
 
 	ip := tokens[ipIndex]
+
 	clientID, err := types.ParseClientID(tokens[ipIndex+1])
 	if err != nil {
 		return nil, fmt.Errorf("NICK: couldn't parse client ID: %w", err)
@@ -238,10 +243,11 @@ func ParseNick(tokens []string) (*Nick, error) {
 
 func (n *Nick) String() string {
 	userModesAndAccount := ""
-	if n.UserModes != "" {
-		userModesAndAccount = fmt.Sprintf(" %s", n.UserModes)
+	userModes := n.UserModes.String()
+	if len(userModes) > 0 {
+		userModesAndAccount = " +" + userModes
 		if n.Account != "" {
-			userModesAndAccount += fmt.Sprintf(" %s", n.Account)
+			userModesAndAccount += " " + n.Account
 		}
 	}
 
@@ -264,10 +270,10 @@ type Burst struct {
 	ServerNumeric    types.ServerNumeric
 	Channel          string
 	CreatedTimestamp int64
-	ChannelModes     *types.ChannelModes
+	ChannelModes     types.ChannelModes
 	ChannelLimit     int
 	ChannelKey       string
-	Members          []*types.ChannelMember
+	Members          []types.ChannelMember
 	Bans             []string
 }
 
@@ -293,7 +299,7 @@ func ParseBurst(tokens []string) (*Burst, error) {
 	}
 
 	membersIndex := 4
-	var channelModes *types.ChannelModes
+	var channelModes types.ChannelModes
 	channelLimit := 0
 	channelKey := ""
 
@@ -325,7 +331,7 @@ func ParseBurst(tokens []string) (*Burst, error) {
 		return nil, fmt.Errorf("BURST: couldn't parse channel members: %w", err)
 	}
 
-	var bans []string
+	bans := []string{}
 	if len(tokens) > membersIndex+1 {
 		bansString := lastParameter(tokens[membersIndex+1:])
 		if len(bansString) > 0 && bansString[0] == '%' {
@@ -346,11 +352,11 @@ func ParseBurst(tokens []string) (*Burst, error) {
 }
 
 func (b *Burst) String() string {
-	channelModes := ""
+	channelModes := b.ChannelModes.String()
 	channelLimit := ""
 	channelKey := ""
-	if b.ChannelModes != nil {
-		channelModes = " +" + b.ChannelModes.String()
+	if len(channelModes) > 0 {
+		channelModes = " +" + channelModes
 		if b.ChannelModes.Limit {
 			channelLimit = fmt.Sprintf(" %d", b.ChannelLimit)
 		}

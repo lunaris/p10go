@@ -95,8 +95,8 @@ type ChannelModes struct {
 	NoQuitParts bool
 }
 
-func ParseChannelModes(s string) (*ChannelModes, error) {
-	modes := &ChannelModes{}
+func ParseChannelModes(s string) (ChannelModes, error) {
+	modes := ChannelModes{}
 	var invalidModes []rune
 
 	for _, r := range s {
@@ -139,13 +139,13 @@ func ParseChannelModes(s string) (*ChannelModes, error) {
 	}
 
 	if len(invalidModes) > 0 {
-		return nil, fmt.Errorf("invalid channel modes: %s", string(invalidModes))
+		return ChannelModes{}, fmt.Errorf("invalid channel modes: %s", string(invalidModes))
 	}
 
 	return modes, nil
 }
 
-func (m *ChannelModes) String() string {
+func (m ChannelModes) String() string {
 	var sb strings.Builder
 
 	if m.NoCTCP {
@@ -235,8 +235,8 @@ type UserModes struct {
 	HiddenHost bool
 }
 
-func ParseUserModes(s string) (*UserModes, error) {
-	modes := &UserModes{}
+func ParseUserModes(s string) (UserModes, error) {
+	modes := UserModes{}
 	var invalidModes []rune
 
 	for _, r := range s {
@@ -279,13 +279,13 @@ func ParseUserModes(s string) (*UserModes, error) {
 	}
 
 	if len(invalidModes) > 0 {
-		return nil, fmt.Errorf("invalid user modes: %s", string(invalidModes))
+		return UserModes{}, fmt.Errorf("invalid user modes: %s", string(invalidModes))
 	}
 
 	return modes, nil
 }
 
-func (m *UserModes) String() string {
+func (m UserModes) String() string {
 	var sb strings.Builder
 
 	if m.Deaf {
@@ -347,8 +347,8 @@ type ChannelUserModes struct {
 	Voice bool
 }
 
-func ParseChannelUserModes(s string) (*ChannelUserModes, error) {
-	modes := &ChannelUserModes{}
+func ParseChannelUserModes(s string) (ChannelUserModes, error) {
+	modes := ChannelUserModes{}
 	var invalidModes []rune
 
 	for _, r := range s {
@@ -363,13 +363,13 @@ func ParseChannelUserModes(s string) (*ChannelUserModes, error) {
 	}
 
 	if len(invalidModes) > 0 {
-		return nil, fmt.Errorf("invalid channel user modes: %s", string(invalidModes))
+		return ChannelUserModes{}, fmt.Errorf("invalid channel user modes: %s", string(invalidModes))
 	}
 
 	return modes, nil
 }
 
-func (m *ChannelUserModes) String() string {
+func (m ChannelUserModes) String() string {
 	var sb strings.Builder
 
 	if m.Op {
@@ -384,43 +384,45 @@ func (m *ChannelUserModes) String() string {
 
 type ChannelMember struct {
 	ClientID ClientID
-	Modes    *ChannelUserModes
+	Modes    ChannelUserModes
 }
 
-func ParseChannelMember(s string) (*ChannelMember, error) {
+func ParseChannelMember(s string) (ChannelMember, error) {
 	parts := strings.Split(s, ":")
 	if len(parts) > 2 {
-		return nil, fmt.Errorf("invalid channel client: %s", s)
+		return ChannelMember{}, fmt.Errorf("invalid channel client: %s", s)
 	}
 
 	clientID, err := ParseClientID(parts[0])
 	if err != nil {
-		return nil, fmt.Errorf("couldn't parse client ID: %w", err)
+		return ChannelMember{}, fmt.Errorf("couldn't parse client ID: %w", err)
 	}
 
 	if len(parts) == 1 {
-		return &ChannelMember{ClientID: clientID}, nil
+		return ChannelMember{ClientID: clientID}, nil
 	}
 
 	modes, err := ParseChannelUserModes(parts[1])
 	if err != nil {
-		return nil, fmt.Errorf("couldn't parse channel user modes: %w", err)
+		return ChannelMember{}, fmt.Errorf("couldn't parse channel user modes: %w", err)
 	}
 
-	return &ChannelMember{ClientID: clientID, Modes: modes}, nil
+	return ChannelMember{ClientID: clientID, Modes: modes}, nil
 }
 
-func (m *ChannelMember) String() string {
-	if m.Modes == nil {
-		return m.ClientID.String()
+func (m ChannelMember) String() string {
+	clientID := m.ClientID.String()
+	modes := m.Modes.String()
+	if len(modes) == 0 {
+		return clientID
 	}
 
-	return fmt.Sprintf("%s:%s", m.ClientID, m.Modes)
+	return fmt.Sprintf("%s:%s", clientID, modes)
 }
 
-func ParseChannelMembers(s string) ([]*ChannelMember, error) {
+func ParseChannelMembers(s string) ([]ChannelMember, error) {
 	parts := strings.Split(s, ",")
-	members := make([]*ChannelMember, len(parts))
+	members := make([]ChannelMember, len(parts))
 	for i, part := range parts {
 		member, err := ParseChannelMember(part)
 		if err != nil {
