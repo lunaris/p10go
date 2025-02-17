@@ -3,12 +3,12 @@ package client
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/lunaris/p10go/pkg/logging"
 	"github.com/lunaris/p10go/pkg/messages"
 	"github.com/lunaris/p10go/pkg/types"
 )
@@ -25,7 +25,7 @@ type P10Client struct {
 
 type Configuration struct {
 	Context context.Context
-	Logger  *slog.Logger
+	Logger  logging.Logger
 
 	ServerAddress string
 
@@ -43,8 +43,6 @@ type Client struct {
 	ID   types.ClientID
 	Nick string
 }
-
-type Channel struct{}
 
 type EventType string
 
@@ -81,14 +79,14 @@ func New(config Configuration) (*P10Client, error) {
 		events:   events,
 	}
 
-	c.debug("connected to server")
+	c.debugf("connected to server")
 	go c.eventLoop()
 
 	return c, nil
 }
 
 func (c *P10Client) Close() {
-	c.debug("closing connection")
+	c.debugf("closing connection")
 	close(c.events)
 	c.conn.Close()
 }
@@ -116,22 +114,15 @@ func (c *P10Client) eventLoop() {
 		for _, m := range ms {
 			switch m := m.(type) {
 			case *messages.EndOfBurst:
-				c.debug("received END_OF_BURST; sending acknowledgement", "numeric", m.ServerNumeric)
-				c.Send(&messages.EndOfBurstAcknowledgement{ServerNumeric: "QQ"})
+				c.handleEndOfBurst(m)
+			case *messages.Join:
+				c.handleJoin(m)
 			case *messages.Nick:
-				c.debug("received NICK; updating clients", "id", m.ClientID, "nick", m.Nick)
-				c.clients[m.ClientID] = &Client{
-					ID:   m.ClientID,
-					Nick: m.Nick,
-				}
+				c.handleNick(m)
 			case *messages.Ping:
-				c.debug("received PING; sending PONG", "source", m.Source)
-				c.Send(&messages.Pong{Source: "QQ", Target: m.Source})
+				c.handlePing(m)
 			case *messages.Server:
-				c.debug("received SERVER; updating servers", "numeric", m.Numeric)
-				c.servers[m.Numeric] = &Server{
-					Numeric: m.Numeric,
-				}
+				c.handleServer(m)
 			}
 
 			c.events <- Event{Type: MessageEvent, Message: m}
@@ -163,7 +154,7 @@ func (c *P10Client) handshake() error {
 }
 
 func (c *P10Client) Send(m messages.Message) error {
-	c.debug("sending message", "message", m.String())
+	c.debugf("sending message", "message", m.String())
 
 	_, err := c.conn.Write([]byte(m.String() + "\r\n"))
 	if err != nil {
@@ -182,7 +173,7 @@ func (c *P10Client) receive() ([]messages.Message, error) {
 	}
 
 	bs := c.buf[:n]
-	c.debug("received bytes", "bytes", string(bs))
+	c.debugf("received bytes", "bytes", string(bs))
 
 	lines := lineBreak.Split(string(bs), -1)
 
@@ -195,38 +186,26 @@ func (c *P10Client) receive() ([]messages.Message, error) {
 
 		tokens := strings.Split(line, " ")
 
-		c.debug("parsing tokens", "index", i, "tokens", tokens)
+		c.debugf("parsing tokens", "index", i, "tokens", tokens)
 		m, err := messages.Parse(tokens)
 		if err != nil {
-			c.error("couldn't parse message", "line", line, "error", err)
+			c.errorf("couldn't parse message", "line", line, "error", err)
 			return nil, fmt.Errorf("couldn't parse message: %w", err)
 		}
 
-		c.info("parsed message", "index", i, "message", m.String())
+		c.infof("parsed message", "index", i, "message", m.String())
 		ms[i] = m
 	}
 
 	return ms, nil
 }
 
-func (c *P10Client) log(level slog.Level, message string, args ...interface{}) {
-	if c.config.Logger != nil {
-		c.config.Logger.Log(c.config.Context, level, message, args...)
+func (c *P10Client) Channel(name string) *Channel {
+	ch, ok := c.channels[name]
+	if !ok {
+		ch = NewChannel(name)
+		c.channels[name] = ch
 	}
-}
 
-func (c *P10Client) debug(message string, args ...interface{}) {
-	c.log(slog.LevelDebug, message, args...)
-}
-
-func (c *P10Client) info(message string, args ...interface{}) {
-	c.log(slog.LevelInfo, message, args...)
-}
-
-func (c *P10Client) warn(message string, args ...interface{}) {
-	c.log(slog.LevelWarn, message, args...)
-}
-
-func (c *P10Client) error(message string, args ...interface{}) {
-	c.log(slog.LevelError, message, args...)
+	return ch
 }
