@@ -46,7 +46,7 @@ func TestChannelModesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		expected := generators.GeneratedChannelModes.Draw(t, "ChannelModes")
 
-		actual, err := types.ParseChannelModes(expected.String())
+		actual, _, err := types.ParseChannelModes(expected.String())
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)

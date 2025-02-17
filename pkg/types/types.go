@@ -95,8 +95,17 @@ type ChannelModes struct {
 	NoQuitParts bool
 }
 
-func ParseChannelModes(s string) (ChannelModes, error) {
+type ParameterizedChannelMode int
+
+const (
+	ParameterizedChannelModeKey ParameterizedChannelMode = iota
+	ParameterizedChannelModeLimit
+)
+
+func ParseChannelModes(s string) (ChannelModes, []ParameterizedChannelMode, error) {
 	modes := ChannelModes{}
+
+	var parameterizedModes []ParameterizedChannelMode
 	var invalidModes []rune
 
 	for _, r := range s {
@@ -111,8 +120,10 @@ func ParseChannelModes(s string) (ChannelModes, error) {
 			modes.InviteOnly = true
 		case 'k':
 			modes.Keyed = true
+			parameterizedModes = append(parameterizedModes, ParameterizedChannelModeKey)
 		case 'l':
 			modes.Limit = true
+			parameterizedModes = append(parameterizedModes, ParameterizedChannelModeLimit)
 		case 'M':
 			modes.UnregisteredModerated = true
 		case 'm':
@@ -139,10 +150,10 @@ func ParseChannelModes(s string) (ChannelModes, error) {
 	}
 
 	if len(invalidModes) > 0 {
-		return ChannelModes{}, fmt.Errorf("invalid channel modes: %s", string(invalidModes))
+		return ChannelModes{}, nil, fmt.Errorf("invalid channel modes: %s", string(invalidModes))
 	}
 
-	return modes, nil
+	return modes, parameterizedModes, nil
 }
 
 func (m ChannelModes) String() string {

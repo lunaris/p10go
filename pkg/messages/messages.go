@@ -33,6 +33,14 @@ func Parse(tokens []string) (Message, error) {
 		return ParseEndOfBurst(tokens)
 	case "G":
 		return ParsePing(tokens)
+	case "J":
+		return ParseJoin(tokens)
+	case "M", "OM":
+		if tokens[2][0] == '#' {
+			return ParseChannelMode(tokens)
+		} else {
+			return ParseUserMode(tokens)
+		}
 	case "N":
 		return ParseNick(tokens)
 	case "Z":
@@ -304,13 +312,15 @@ func ParseBurst(tokens []string) (*Burst, error) {
 	channelKey := ""
 
 	if tokens[4][0] == '+' {
-		channelModes, err = types.ParseChannelModes(tokens[4][1:])
+		channelModes, _, err = types.ParseChannelModes(tokens[4][1:])
 		if err != nil {
 			return nil, fmt.Errorf("BURST: couldn't parse channel modes: %w", err)
 		}
 
 		membersIndex++
 
+		// In a burst, limit always comes before key, so we don't need to use the
+		// parameterized modes return value of ParseChannelModes.
 		if channelModes.Limit {
 			channelLimit, err = strconv.Atoi(tokens[membersIndex])
 			if err != nil {
@@ -504,29 +514,414 @@ type Join struct {
 	Timestamp int64
 }
 
+func ParseJoin(tokens []string) (*Join, error) {
+	clientID, err := types.ParseClientID(tokens[0])
+	if err != nil {
+		return nil, fmt.Errorf("JOIN: couldn't parse client ID: %w", err)
+	}
+
+	if tokens[1] != "J" {
+		return nil, fmt.Errorf("JOIN: expected J; received %s", tokens[1])
+	}
+
+	channel := tokens[2]
+
+	timestamp, err := strconv.ParseInt(tokens[3], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("JOIN: couldn't parse timestamp: %w", err)
+	}
+
+	return &Join{ClientID: clientID, Channel: channel, Timestamp: timestamp}, nil
+}
+
 func (j *Join) String() string {
 	return fmt.Sprintf("%s J %s %d", j.ClientID, j.Channel, j.Timestamp)
 }
 
-type ChannelUserMode struct {
-	Source  types.ClientID
-	Channel string
-	Add     *types.ChannelUserModes
-	Remove  *types.ChannelUserModes
-	Target  types.ClientID
+type ChannelMode struct {
+	OpMode                 bool
+	Source                 types.ClientID
+	Channel                string
+	AddChannelModes        *types.ChannelModes
+	RemoveChannelModes     *types.ChannelModes
+	AddChannelUserModes    []types.ChannelMember
+	RemoveChannelUserModes []types.ChannelMember
+	Key                    string
+	AddLimit               int
 }
 
-func (cum *ChannelUserMode) String() string {
-	modes := ""
-	if cum.Add != nil {
-		modes += "+" + cum.Add.String()
-	}
-	if cum.Remove != nil {
-		modes += "-" + cum.Remove.String()
+func ParseChannelMode(tokens []string) (*ChannelMode, error) {
+	if len(tokens) < 4 {
+		return nil, fmt.Errorf("MODE(CHANNEL): expected at least 4 tokens; received %d", len(tokens))
 	}
 
-	// HACK: OM instead of M. Should do this separately.
-	return fmt.Sprintf("%s OM %s %s %s", cum.Source, cum.Channel, modes, cum.Target)
+	source, err := types.ParseClientID(tokens[0])
+	if err != nil {
+		return nil, fmt.Errorf("MODE(CHANNEL): couldn't parse source: %w", err)
+	}
+
+	opMode := false
+	if tokens[1] == "OM" {
+		opMode = true
+	} else if tokens[1] != "M" {
+		return nil, fmt.Errorf("MODE(CHANNEL): expected M or OM; received %s", tokens[1])
+	}
+
+	channel := tokens[2]
+	if channel[0] != '#' {
+		return nil, fmt.Errorf("MODE(CHANNEL): expected channel to start with #; received %s", channel)
+	}
+
+	nextIndex := 4
+
+	adding := true
+
+	var addChannelModes *types.ChannelModes
+	var removeChannelModes *types.ChannelModes
+
+	key := ""
+	addLimit := 0
+
+	var addChannelUserModes []types.ChannelMember
+	var removeChannelUserModes []types.ChannelMember
+
+	seen := map[rune]bool{}
+
+	for _, c := range tokens[3] {
+		withChannelModes := func(f func(*types.ChannelModes)) {
+			if adding {
+				if addChannelModes == nil {
+					addChannelModes = &types.ChannelModes{}
+				}
+
+				f(addChannelModes)
+			} else {
+				if removeChannelModes == nil {
+					removeChannelModes = &types.ChannelModes{}
+				}
+
+				f(removeChannelModes)
+			}
+		}
+
+		registerChannelMember := func(m types.ChannelMember) {
+			if adding {
+				addChannelUserModes = append(addChannelUserModes, m)
+			} else {
+				removeChannelUserModes = append(removeChannelUserModes, m)
+			}
+		}
+
+		if c == '+' {
+			adding = true
+			continue
+		}
+
+		if c == '-' {
+			adding = false
+			continue
+		}
+
+		if c != 'o' && c != 'v' && seen[c] {
+			return nil, fmt.Errorf("MODE(CHANNEL): duplicate mode: %c", c)
+		}
+
+		seen[c] = true
+
+		switch c {
+		case 'C':
+			withChannelModes(func(m *types.ChannelModes) { m.NoCTCP = true })
+		case 'c':
+			withChannelModes(func(m *types.ChannelModes) { m.NoColour = true })
+		case 'D':
+			withChannelModes(func(m *types.ChannelModes) { m.DelayedJoins = true })
+		case 'i':
+			withChannelModes(func(m *types.ChannelModes) { m.InviteOnly = true })
+		case 'k':
+			withChannelModes(func(m *types.ChannelModes) { m.Keyed = true })
+			key = tokens[nextIndex]
+			nextIndex++
+		case 'l':
+			withChannelModes(func(m *types.ChannelModes) { m.Limit = true })
+			if adding {
+				limit, err := strconv.Atoi(tokens[nextIndex])
+				if err != nil {
+					return nil, fmt.Errorf("MODE(CHANNEL): couldn't parse channel limit: %w", err)
+				}
+
+				addLimit = limit
+				nextIndex++
+			}
+		case 'M':
+			withChannelModes(func(m *types.ChannelModes) { m.UnregisteredModerated = true })
+		case 'm':
+			withChannelModes(func(m *types.ChannelModes) { m.Moderated = true })
+		case 'N':
+			withChannelModes(func(m *types.ChannelModes) { m.NoNotices = true })
+		case 'n':
+			withChannelModes(func(m *types.ChannelModes) {
+				m.NoPrivateMessages = true
+			})
+		case 'o':
+			clientId, err := types.ParseClientID(tokens[nextIndex])
+			if err != nil {
+				return nil, fmt.Errorf("MODE(CHANNEL): couldn't parse client ID: %w", err)
+			}
+
+			registerChannelMember(types.ChannelMember{
+				ClientID: clientId,
+				Modes:    types.ChannelUserModes{Op: true},
+			})
+
+			nextIndex++
+		case 'p':
+			withChannelModes(func(m *types.ChannelModes) { m.Private = true })
+		case 'r':
+			withChannelModes(func(m *types.ChannelModes) { m.RegisteredOnly = true })
+		case 's':
+			withChannelModes(func(m *types.ChannelModes) { m.Secret = true })
+		case 'T':
+			withChannelModes(func(m *types.ChannelModes) { m.NoMultipleTargets = true })
+		case 't':
+			withChannelModes(func(m *types.ChannelModes) { m.TopicLimited = true })
+		case 'u':
+			withChannelModes(func(m *types.ChannelModes) { m.NoQuitParts = true })
+		case 'v':
+			clientId, err := types.ParseClientID(tokens[nextIndex])
+			if err != nil {
+				return nil, fmt.Errorf("MODE(CHANNEL): couldn't parse client ID: %w", err)
+			}
+
+			registerChannelMember(types.ChannelMember{
+				ClientID: clientId,
+				Modes:    types.ChannelUserModes{Voice: true},
+			})
+
+			nextIndex++
+		}
+	}
+
+	return &ChannelMode{
+		OpMode:                 opMode,
+		Source:                 source,
+		Channel:                channel,
+		AddChannelModes:        addChannelModes,
+		RemoveChannelModes:     removeChannelModes,
+		AddChannelUserModes:    addChannelUserModes,
+		RemoveChannelUserModes: removeChannelUserModes,
+		Key:                    key,
+		AddLimit:               addLimit,
+	}, nil
+}
+
+func (m *ChannelMode) String() string {
+	var modes strings.Builder
+	var args strings.Builder
+
+	token := "M"
+	if m.OpMode {
+		token = "OM"
+	}
+
+	if m.AddChannelModes != nil {
+		s := m.AddChannelModes.String()
+		if len(s) > 0 {
+			modes.WriteString("+" + s)
+		}
+
+		if m.AddChannelModes.Keyed && m.Key != "" {
+			args.WriteString(" " + m.Key)
+		}
+
+		if m.AddChannelModes.Limit && m.AddLimit > 0 {
+			args.WriteString(" " + strconv.Itoa(m.AddLimit))
+		}
+	}
+
+	if m.RemoveChannelModes != nil {
+		s := m.RemoveChannelModes.String()
+		if len(s) > 0 {
+			modes.WriteString("-" + s)
+		}
+
+		if m.RemoveChannelModes.Keyed && m.Key != "" {
+			args.WriteString(" " + m.Key)
+		}
+	}
+
+	for _, m := range m.AddChannelUserModes {
+		if m.Modes.Op {
+			modes.WriteString("+o")
+			args.WriteString(" " + m.ClientID.String())
+		}
+		if m.Modes.Voice {
+			modes.WriteString("+v")
+			args.WriteString(" " + m.ClientID.String())
+		}
+	}
+
+	for _, m := range m.RemoveChannelUserModes {
+		if m.Modes.Op {
+			modes.WriteString("-o")
+			args.WriteString(" " + m.ClientID.String())
+		}
+		if m.Modes.Voice {
+			modes.WriteString("-v")
+			args.WriteString(" " + m.ClientID.String())
+		}
+	}
+
+	return fmt.Sprintf(
+		"%s %s %s %s%s",
+		m.Source,
+		token,
+		m.Channel,
+		modes.String(),
+		args.String(),
+	)
+}
+
+type UserMode struct {
+	OpMode      bool
+	Source      types.ClientID
+	Nick        string
+	AddModes    *types.UserModes
+	RemoveModes *types.UserModes
+}
+
+func ParseUserMode(tokens []string) (*UserMode, error) {
+	if len(tokens) < 4 {
+		return nil, fmt.Errorf("MODE(USER): expected at least 4 tokens; received %d", len(tokens))
+	}
+
+	source, err := types.ParseClientID(tokens[0])
+	if err != nil {
+		return nil, fmt.Errorf("MODE(USER): couldn't parse source: %w", err)
+	}
+
+	opMode := false
+	if tokens[1] == "OM" {
+		opMode = true
+	} else if tokens[1] != "M" {
+		return nil, fmt.Errorf("MODE(USER): expected M or OM; received %s", tokens[1])
+	}
+
+	nick := tokens[2]
+
+	adding := true
+
+	var addModes *types.UserModes
+	var removeModes *types.UserModes
+
+	seen := map[rune]bool{}
+
+	for _, c := range tokens[3] {
+		withModes := func(f func(*types.UserModes)) {
+			if adding {
+				if addModes == nil {
+					addModes = &types.UserModes{}
+				}
+
+				f(addModes)
+			} else {
+				if removeModes == nil {
+					removeModes = &types.UserModes{}
+				}
+
+				f(removeModes)
+			}
+		}
+
+		if c == '+' {
+			adding = true
+			continue
+		}
+
+		if c == '-' {
+			adding = false
+			continue
+		}
+
+		if seen[c] {
+			return nil, fmt.Errorf("MODE(USER): duplicate mode: %c", c)
+		}
+
+		seen[c] = true
+
+		switch c {
+		case 'd':
+			withModes(func(m *types.UserModes) { m.Deaf = true })
+		case 'g':
+			withModes(func(m *types.UserModes) { m.Debug = true })
+		case 'h':
+			withModes(func(m *types.UserModes) { m.SetHost = true })
+		case 'I':
+			withModes(func(m *types.UserModes) { m.NoIdle = true })
+		case 'i':
+			withModes(func(m *types.UserModes) { m.Invisible = true })
+		case 'k':
+			withModes(func(m *types.UserModes) { m.ChannelService = true })
+		case 'n':
+			withModes(func(m *types.UserModes) { m.NoChannels = true })
+		case 'O':
+			withModes(func(m *types.UserModes) { m.LocalOp = true })
+		case 'o':
+			withModes(func(m *types.UserModes) { m.Op = true })
+		case 'P':
+			withModes(func(m *types.UserModes) { m.Paranoid = true })
+		case 'R':
+			withModes(func(m *types.UserModes) { m.AccountOnly = true })
+		case 'r':
+			withModes(func(m *types.UserModes) { m.Account = true })
+		case 's':
+			withModes(func(m *types.UserModes) { m.ServerNotices = true })
+		case 'w':
+			withModes(func(m *types.UserModes) { m.WallOps = true })
+		case 'X':
+			withModes(func(m *types.UserModes) { m.ExtraOp = true })
+		case 'x':
+			withModes(func(m *types.UserModes) { m.HiddenHost = true })
+		}
+	}
+
+	return &UserMode{
+		OpMode:      opMode,
+		Source:      source,
+		Nick:        nick,
+		AddModes:    addModes,
+		RemoveModes: removeModes,
+	}, nil
+}
+
+func (m *UserMode) String() string {
+	var modes strings.Builder
+
+	token := "M"
+	if m.OpMode {
+		token = "OM"
+	}
+
+	if m.AddModes != nil {
+		s := m.AddModes.String()
+		if len(s) > 0 {
+			modes.WriteString("+" + s)
+		}
+	}
+
+	if m.RemoveModes != nil {
+		s := m.RemoveModes.String()
+		if len(s) > 0 {
+			modes.WriteString("-" + s)
+		}
+	}
+
+	return fmt.Sprintf(
+		"%s %s %s %s",
+		m.Source,
+		token,
+		m.Nick,
+		modes.String(),
+	)
 }
 
 type Unknown struct {
