@@ -8,6 +8,7 @@ import (
 	"github.com/lunaris/p10go/pkg/chanserv"
 	"github.com/lunaris/p10go/pkg/client"
 	"github.com/lunaris/p10go/pkg/logging"
+	"github.com/lunaris/p10go/pkg/types"
 )
 
 func main() {
@@ -37,6 +38,15 @@ func main() {
 	cs := chanserv.NewChanserv(chanserv.Configuration{
 		Logger: logger,
 		Client: c,
+
+		ClientID: types.ClientID{
+			Server: "QQ",
+			Client: "AAA",
+		},
+		Nick:     "Q",
+		Info:     "The Q bot",
+		MaskUser: "Q",
+		MaskHost: "services.p10.localhost",
 	})
 
 	logger.Infof("starting channel services")

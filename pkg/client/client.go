@@ -14,7 +14,16 @@ import (
 )
 
 type P10Client struct {
-	config   Configuration
+	context context.Context
+	logger  logging.Logger
+
+	serverAddress string
+
+	clientPassword    string
+	clientNumeric     types.ServerNumeric
+	clientName        string
+	clientDescription string
+
 	conn     net.Conn
 	buf      []byte
 	servers  map[types.ServerNumeric]*Server
@@ -70,7 +79,16 @@ func New(config Configuration) (*P10Client, error) {
 	events := make(chan Event)
 
 	c := &P10Client{
-		config:   config,
+		context: config.Context,
+		logger:  config.Logger,
+
+		serverAddress: config.ServerAddress,
+
+		clientPassword:    config.ClientPassword,
+		clientNumeric:     config.ClientNumeric,
+		clientName:        config.ClientName,
+		clientDescription: config.ClientDescription,
+
 		conn:     conn,
 		buf:      buf,
 		servers:  servers,
@@ -131,20 +149,20 @@ func (c *P10Client) eventLoop() {
 }
 
 func (c *P10Client) handshake() error {
-	err := c.Send(&messages.Pass{Password: c.config.ClientPassword})
+	err := c.Send(&messages.Pass{Password: c.clientPassword})
 	if err != nil {
 		return fmt.Errorf("couldn't send PASS: %w", err)
 	}
 
 	err = c.Send(&messages.Server{
-		Name:           c.config.ClientName,
+		Name:           c.clientName,
 		HopCount:       1,
 		StartTimestamp: time.Now().Unix(),
 		LinkTimestamp:  time.Now().Unix(),
 		Protocol:       messages.J10,
-		Numeric:        c.config.ClientNumeric,
+		Numeric:        c.clientNumeric,
 		MaxConnections: "]]]",
-		Description:    c.config.ClientDescription,
+		Description:    c.clientDescription,
 	})
 	if err != nil {
 		return fmt.Errorf("couldn't send SERVER: %w", err)

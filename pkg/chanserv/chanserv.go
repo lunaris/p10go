@@ -10,7 +10,14 @@ import (
 )
 
 type Chanserv struct {
-	config Configuration
+	logger logging.Logger
+	client *client.P10Client
+
+	clientID types.ClientID
+	nick     string
+	info     string
+	maskUser string
+	maskHost string
 
 	done chan struct{}
 }
@@ -18,17 +25,31 @@ type Chanserv struct {
 type Configuration struct {
 	Logger logging.Logger
 	Client *client.P10Client
+
+	ClientID types.ClientID
+	Nick     string
+	Info     string
+	MaskUser string
+	MaskHost string
 }
 
 func NewChanserv(config Configuration) *Chanserv {
 	return &Chanserv{
-		config: config,
-		done:   make(chan struct{}),
+		logger: config.Logger,
+		client: config.Client,
+
+		clientID: config.ClientID,
+		nick:     config.Nick,
+		info:     config.Info,
+		maskUser: config.MaskUser,
+		maskHost: config.MaskHost,
+
+		done: make(chan struct{}),
 	}
 }
 
 func (c *Chanserv) Go() {
-	for e := range c.config.Client.Events() {
+	for e := range c.client.Events() {
 		switch e.Type {
 		case client.MessageEvent:
 			switch m := e.Message.(type) {
@@ -48,56 +69,41 @@ func (c *Chanserv) Done() <-chan struct{} {
 }
 
 func (c *Chanserv) handleEndOfBurst(m *messages.EndOfBurst) {
-	c.infof("sending Q", "m", m)
-	c.config.Client.Send(&messages.Nick{
-		ServerNumeric:    "QQ",
-		Nick:             "Q",
+	c.infof("sending nick", "nick", c.nick, "info", c.info, "maskUser", c.maskUser, "maskHost", c.maskHost)
+	c.client.Send(&messages.Nick{
+		ServerNumeric:    c.clientID.Server,
+		Nick:             c.nick,
 		HopCount:         1,
 		CreatedTimestamp: time.Now().Unix(),
-		MaskUser:         "Q",
-		MaskHost:         "services.p10.localhost",
+		MaskUser:         c.maskUser,
+		MaskHost:         c.maskHost,
 		UserModes:        types.UserModes{Invisible: true},
 		IP:               "+6n",
-		ClientID: types.ClientID{
-			Server: "QQ",
-			Client: "AAA",
-		},
-		Info: "The Q Bot",
+		ClientID:         c.clientID,
+		Info:             c.info,
 	})
-	c.config.Client.Send(&messages.Join{
-		ClientID: types.ClientID{
-			Server: "QQ",
-			Client: "AAA",
-		},
+	c.client.Send(&messages.Join{
+		ClientID:  c.clientID,
 		Channel:   "#dev",
 		Timestamp: time.Now().Unix(),
 	})
-	c.config.Client.Send(&messages.ChannelMode{
-		OpMode: true,
-		Source: types.ClientID{
-			Server: "QQ",
-			Client: "AAA",
-		},
+	c.client.Send(&messages.ChannelMode{
+		OpMode:  true,
+		Source:  c.clientID,
 		Channel: "#dev",
 		AddChannelUserModes: []types.ChannelMember{
 			{
-				ClientID: types.ClientID{
-					Server: "QQ",
-					Client: "AAA",
-				},
-				Modes: types.ChannelUserModes{Op: true},
+				ClientID: c.clientID,
+				Modes:    types.ChannelUserModes{Op: true},
 			},
 		},
 	})
 }
 
 func (c *Chanserv) handleJoin(m *messages.Join) {
-	c.config.Client.Send(&messages.ChannelMode{
-		OpMode: true,
-		Source: types.ClientID{
-			Server: "QQ",
-			Client: "AAA",
-		},
+	c.client.Send(&messages.ChannelMode{
+		OpMode:  true,
+		Source:  c.clientID,
 		Channel: m.Channel,
 		AddChannelUserModes: []types.ChannelMember{
 			{
