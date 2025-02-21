@@ -52,6 +52,6 @@ func main() {
 	logger.Infof("starting channel services")
 	go cs.Go()
 
-	logger.Infof("all services exited; shutting down")
 	<-cs.Done()
+	logger.Infof("all services exited; shutting down")
 }
