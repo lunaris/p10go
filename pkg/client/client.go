@@ -29,7 +29,10 @@ type P10Client struct {
 	servers  map[types.ServerNumeric]*Server
 	clients  map[types.ClientID]*Client
 	channels map[string]*Channel
-	events   chan Event
+
+	observers []Observer
+
+	done chan struct{}
 }
 
 type Configuration struct {
@@ -42,6 +45,12 @@ type Configuration struct {
 	ClientNumeric     types.ServerNumeric
 	ClientName        string
 	ClientDescription string
+
+	Observers []Observer
+}
+
+type Observer interface {
+	OnEvent(*P10Client, Event)
 }
 
 type Server struct {
@@ -58,6 +67,7 @@ type EventType string
 const (
 	MessageEvent EventType = "message"
 	ErrorEvent   EventType = "error"
+	CloseEvent   EventType = "close"
 )
 
 type Event struct {
@@ -66,7 +76,7 @@ type Event struct {
 	Error   error
 }
 
-func New(config Configuration) (*P10Client, error) {
+func Connect(config Configuration) (*P10Client, error) {
 	conn, err := net.Dial("tcp", config.ServerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't connect to server: %w", err)
@@ -76,7 +86,6 @@ func New(config Configuration) (*P10Client, error) {
 	servers := make(map[types.ServerNumeric]*Server)
 	clients := make(map[types.ClientID]*Client)
 	channels := make(map[string]*Channel)
-	events := make(chan Event)
 
 	c := &P10Client{
 		context: config.Context,
@@ -94,7 +103,10 @@ func New(config Configuration) (*P10Client, error) {
 		servers:  servers,
 		clients:  clients,
 		channels: channels,
-		events:   events,
+
+		observers: config.Observers,
+
+		done: make(chan struct{}),
 	}
 
 	c.debugf("connected to server")
@@ -105,27 +117,28 @@ func New(config Configuration) (*P10Client, error) {
 
 func (c *P10Client) Close() {
 	c.debugf("closing connection")
-	close(c.events)
+	c.notifyObservers(Event{Type: CloseEvent})
 	c.conn.Close()
+	close(c.done)
 }
 
-func (c *P10Client) Events() <-chan Event {
-	return c.events
+func (c *P10Client) Done() <-chan struct{} {
+	return c.done
 }
 
 func (c *P10Client) eventLoop() {
+	defer c.Close()
+
 	err := c.handshake()
 	if err != nil {
-		c.events <- Event{Type: ErrorEvent, Error: err}
-		c.Close()
+		c.notifyObservers(Event{Type: ErrorEvent, Error: err})
 		return
 	}
 
 	for {
 		ms, err := c.receive()
 		if err != nil {
-			c.events <- Event{Type: ErrorEvent, Error: err}
-			c.Close()
+			c.notifyObservers(Event{Type: ErrorEvent, Error: err})
 			return
 		}
 
@@ -143,7 +156,7 @@ func (c *P10Client) eventLoop() {
 				c.handleServer(m)
 			}
 
-			c.events <- Event{Type: MessageEvent, Message: m}
+			c.notifyObservers(Event{Type: MessageEvent, Message: m})
 		}
 	}
 }
@@ -216,6 +229,12 @@ func (c *P10Client) receive() ([]messages.Message, error) {
 	}
 
 	return ms, nil
+}
+
+func (c *P10Client) notifyObservers(e Event) {
+	for _, o := range c.observers {
+		o.OnEvent(c, e)
+	}
 }
 
 func (c *P10Client) Channel(name string) *Channel {

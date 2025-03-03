@@ -19,25 +19,8 @@ func main() {
 		})),
 	)
 
-	c, err := client.New(client.Configuration{
-		Context: context.Background(),
-		Logger:  logger,
-
-		ServerAddress: "localhost:4400",
-
-		ClientPassword:    "p10",
-		ClientNumeric:     "QQ",
-		ClientName:        "p10.localhost",
-		ClientDescription: "P10 (Go)",
-	})
-	if err != nil {
-		logger.Errorf("failed to create client: %v", err)
-		return
-	}
-
-	cs := chanserv.NewChanserv(chanserv.Configuration{
+	csQ := chanserv.NewChanserv(chanserv.Configuration{
 		Logger: logger,
-		Client: c,
 
 		ClientID: types.ClientID{
 			Server: "QQ",
@@ -48,10 +31,37 @@ func main() {
 		MaskUser: "Q",
 		MaskHost: "services.p10.localhost",
 	})
+	csL := chanserv.NewChanserv(chanserv.Configuration{
+		Logger: logger,
 
-	logger.Infof("starting channel services")
-	go cs.Go()
+		ClientID: types.ClientID{
+			Server: "QQ",
+			Client: "AAB",
+		},
+		Nick:     "L",
+		Info:     "Lightweight",
+		MaskUser: "L",
+		MaskHost: "services.p10.localhost",
+	})
 
-	<-cs.Done()
-	logger.Infof("all services exited; shutting down")
+	c, err := client.Connect(client.Configuration{
+		Context: context.Background(),
+		Logger:  logger,
+
+		ServerAddress: "localhost:4400",
+
+		ClientPassword:    "p10",
+		ClientNumeric:     "QQ",
+		ClientName:        "p10.localhost",
+		ClientDescription: "P10 (Go)",
+
+		Observers: []client.Observer{csQ, csL},
+	})
+	if err != nil {
+		logger.Errorf("failed to create client: %v", err)
+		return
+	}
+
+	logger.Infof("starting services")
+	<-c.Done()
 }
