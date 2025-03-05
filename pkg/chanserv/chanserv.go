@@ -55,7 +55,7 @@ func (c *Chanserv) OnEvent(cl *client.P10Client, e client.Event) {
 }
 
 func (c *Chanserv) handleEndOfBurst(cl *client.P10Client, m *messages.EndOfBurst) {
-	c.infof("sending nick", "nick", c.nick, "info", c.info, "maskUser", c.maskUser, "maskHost", c.maskHost)
+	c.infof("sending nick", "info", c.info, "maskUser", c.maskUser, "maskHost", c.maskHost)
 	cl.Send(&messages.Nick{
 		ServerNumeric:    c.clientID.Server,
 		Nick:             c.nick,

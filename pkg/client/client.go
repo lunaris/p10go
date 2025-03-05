@@ -217,14 +217,14 @@ func (c *P10Client) receive() ([]messages.Message, error) {
 
 		tokens := strings.Split(line, " ")
 
-		c.debugf("parsing tokens", "index", i, "tokens", tokens)
+		c.debugf("parsing tokens", "lineNumber", i, "tokens", tokens)
 		m, err := messages.Parse(tokens)
 		if err != nil {
 			c.errorf("couldn't parse message", "line", line, "error", err)
 			return nil, fmt.Errorf("couldn't parse message: %w", err)
 		}
 
-		c.infof("parsed message", "index", i, "message", m.String())
+		c.debugf("parsed message", "lineNumber", i, "message", m.String())
 		ms[i] = m
 	}
 
