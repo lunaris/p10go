@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/lunaris/p10go/pkg/chanserv"
+	chanservPersistence "github.com/lunaris/p10go/pkg/chanserv/persistence"
 	"github.com/lunaris/p10go/pkg/client"
 	"github.com/lunaris/p10go/pkg/logging"
 	"github.com/lunaris/p10go/pkg/types"
@@ -19,6 +20,13 @@ func main() {
 		})),
 	)
 
+	users := chanservPersistence.NewInMemoryUserRepository(
+		chanservPersistence.InMemoryUser{
+			Username: "will",
+			Password: "password123",
+		},
+	)
+
 	csQ := chanserv.NewChanserv(chanserv.Configuration{
 		Logger: logger,
 
@@ -30,6 +38,8 @@ func main() {
 		Info:     "The Q bot",
 		MaskUser: "Q",
 		MaskHost: "services.p10.localhost",
+
+		Users: users,
 	})
 	csL := chanserv.NewChanserv(chanserv.Configuration{
 		Logger: logger,
@@ -42,6 +52,8 @@ func main() {
 		Info:     "Lightweight",
 		MaskUser: "L",
 		MaskHost: "services.p10.localhost",
+
+		Users: users,
 	})
 
 	c, err := client.Connect(client.Configuration{

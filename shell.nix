@@ -19,6 +19,8 @@
       pkgs.nix
       pkgs.nodePackages.pnpm
       pkgs.nodejs-18_x
+      pkgs.tree
+      pkgs.weechat
     ];
 
     hardeningDisable = [ "fortify" ];

@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"github.com/lunaris/p10go/pkg/messages"
-	"github.com/lunaris/p10go/test/generators"
+	messageGenerators "github.com/lunaris/p10go/test/generators/messages"
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 )
 
 func TestPassMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedPass.Draw(t, "ServerNumeric")
+		expected := messageGenerators.GeneratedPass.Draw(t, "ServerNumeric")
 
 		actual, err := messages.ParsePass(strings.Split(expected.String(), " "))
 
@@ -23,7 +23,7 @@ func TestPassMessagesRoundtrip(t *testing.T) {
 
 func TestServerMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedServer.Draw(t, "Server")
+		expected := messageGenerators.GeneratedServer.Draw(t, "Server")
 
 		actual, err := messages.ParseServer(strings.Split(expected.String(), " "))
 
@@ -34,7 +34,7 @@ func TestServerMessagesRoundtrip(t *testing.T) {
 
 func TestNickMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedNick.Draw(t, "Nick")
+		expected := messageGenerators.GeneratedNick.Draw(t, "Nick")
 
 		actual, err := messages.ParseNick(strings.Split(expected.String(), " "))
 
@@ -45,7 +45,7 @@ func TestNickMessagesRoundtrip(t *testing.T) {
 
 func TestBurstMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedBurst.Draw(t, "Burst")
+		expected := messageGenerators.GeneratedBurst.Draw(t, "Burst")
 
 		actual, err := messages.ParseBurst(strings.Split(expected.String(), " "))
 
@@ -56,7 +56,7 @@ func TestBurstMessagesRoundtrip(t *testing.T) {
 
 func TestPingMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedPing.Draw(t, "Ping")
+		expected := messageGenerators.GeneratedPing.Draw(t, "Ping")
 
 		actual, err := messages.ParsePing(strings.Split(expected.String(), " "))
 
@@ -67,7 +67,7 @@ func TestPingMessagesRoundtrip(t *testing.T) {
 
 func TestPongMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedPong.Draw(t, "Pong")
+		expected := messageGenerators.GeneratedPong.Draw(t, "Pong")
 
 		actual, err := messages.ParsePong(strings.Split(expected.String(), " "))
 
@@ -78,7 +78,7 @@ func TestPongMessagesRoundtrip(t *testing.T) {
 
 func TestJoinMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedJoin.Draw(t, "Join")
+		expected := messageGenerators.GeneratedJoin.Draw(t, "Join")
 
 		actual, err := messages.ParseJoin(strings.Split(expected.String(), " "))
 
@@ -89,7 +89,7 @@ func TestJoinMessagesRoundtrip(t *testing.T) {
 
 func TestChannelModeMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedChannelMode.Draw(t, "ChannelMode")
+		expected := messageGenerators.GeneratedChannelMode.Draw(t, "ChannelMode")
 
 		t.Logf("expected: %s", expected.String())
 
@@ -102,11 +102,24 @@ func TestChannelModeMessagesRoundtrip(t *testing.T) {
 
 func TestUserModeMessagesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedUserMode.Draw(t, "UserMode")
+		expected := messageGenerators.GeneratedUserMode.Draw(t, "UserMode")
 
 		t.Logf("expected: %s", expected.String())
 
 		actual, err := messages.ParseUserMode(strings.Split(expected.String(), " "))
+
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+}
+
+func TestPrivmsgMessagesRoundtrip(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		expected := messageGenerators.GeneratedPrivmsg.Draw(t, "Privmsg")
+
+		t.Logf("expected: %s", expected.String())
+
+		actual, err := messages.ParsePrivmsg(strings.Split(expected.String(), " "))
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)

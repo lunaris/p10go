@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"github.com/lunaris/p10go/pkg/types"
-	"github.com/lunaris/p10go/test/generators"
+	typeGenerators "github.com/lunaris/p10go/test/generators/types"
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 )
 
 func TestServerNumericsRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedServerNumeric.Draw(t, "ServerNumeric")
+		expected := typeGenerators.GeneratedServerNumeric.Draw(t, "ServerNumeric")
 
 		actual, err := types.ParseServerNumeric(string(expected))
 
@@ -22,7 +22,7 @@ func TestServerNumericsRoundtrip(t *testing.T) {
 
 func TestClientNumericsRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedClientNumeric.Draw(t, "ClientNumeric")
+		expected := typeGenerators.GeneratedClientNumeric.Draw(t, "ClientNumeric")
 
 		actual, err := types.ParseClientNumeric(string(expected))
 
@@ -33,7 +33,7 @@ func TestClientNumericsRoundtrip(t *testing.T) {
 
 func TestClientIDsRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedClientID.Draw(t, "ClientID")
+		expected := typeGenerators.GeneratedClientID.Draw(t, "ClientID")
 
 		actual, err := types.ParseClientID(expected.String())
 
@@ -44,7 +44,7 @@ func TestClientIDsRoundtrip(t *testing.T) {
 
 func TestChannelModesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedChannelModes.Draw(t, "ChannelModes")
+		expected := typeGenerators.GeneratedChannelModes.Draw(t, "ChannelModes")
 
 		actual, _, err := types.ParseChannelModes(expected.String())
 
@@ -55,7 +55,7 @@ func TestChannelModesRoundtrip(t *testing.T) {
 
 func TestUserModesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedUserModes.Draw(t, "UserModes")
+		expected := typeGenerators.GeneratedUserModes.Draw(t, "UserModes")
 
 		actual, err := types.ParseUserModes(expected.String())
 
@@ -66,7 +66,7 @@ func TestUserModesRoundtrip(t *testing.T) {
 
 func TestChannelUserModesRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedChannelUserModes.Draw(t, "ChannelUserModes")
+		expected := typeGenerators.GeneratedChannelUserModes.Draw(t, "ChannelUserModes")
 
 		actual, err := types.ParseChannelUserModes(expected.String())
 
@@ -77,7 +77,7 @@ func TestChannelUserModesRoundtrip(t *testing.T) {
 
 func TestChannelMembersRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		expected := generators.GeneratedChannelMember.Draw(t, "ChannelMember")
+		expected := typeGenerators.GeneratedChannelMember.Draw(t, "ChannelMember")
 
 		actual, err := types.ParseChannelMember(expected.String())
 
