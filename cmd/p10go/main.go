@@ -9,6 +9,7 @@ import (
 	chanservPersistence "github.com/lunaris/p10go/pkg/chanserv/persistence"
 	"github.com/lunaris/p10go/pkg/client"
 	"github.com/lunaris/p10go/pkg/logging"
+	"github.com/lunaris/p10go/pkg/operserv"
 	"github.com/lunaris/p10go/pkg/types"
 )
 
@@ -32,7 +33,7 @@ func main() {
 
 		ClientID: types.ClientID{
 			Server: "QQ",
-			Client: "AAA",
+			Client: "QQQ",
 		},
 		Nick:     "Q",
 		Info:     "The Q bot",
@@ -46,7 +47,7 @@ func main() {
 
 		ClientID: types.ClientID{
 			Server: "QQ",
-			Client: "AAB",
+			Client: "LLL",
 		},
 		Nick:     "L",
 		Info:     "Lightweight",
@@ -55,6 +56,18 @@ func main() {
 
 		Users: users,
 	})
+  osO := operserv.NewOperserv(operserv.Configuration{
+		Logger: logger,
+
+		ClientID: types.ClientID{
+			Server: "QQ",
+			Client: "OOO",
+		},
+		Nick:     "O",
+		Info:     "Operserv",
+		MaskUser: "O",
+		MaskHost: "services.p10.localhost",
+  })
 
 	c, err := client.Connect(client.Configuration{
 		Context: context.Background(),
@@ -67,7 +80,7 @@ func main() {
 		ClientName:        "p10.localhost",
 		ClientDescription: "P10 (Go)",
 
-		Observers: []client.Observer{csQ, csL},
+		Observers: []client.Observer{csQ, csL, osO},
 	})
 	if err != nil {
 		logger.Errorf("failed to create client: %v", err)
