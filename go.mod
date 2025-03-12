@@ -3,6 +3,7 @@ module github.com/lunaris/p10go
 go 1.22.7
 
 require (
+	github.com/ergochat/irc-go v0.4.0
 	github.com/fatih/color v1.18.0
 	github.com/stretchr/testify v1.9.0
 	pgregory.net/rapid v1.1.0

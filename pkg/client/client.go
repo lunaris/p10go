@@ -24,8 +24,10 @@ type P10Client struct {
 	clientName        string
 	clientDescription string
 
-	conn    net.Conn
-	buf     []byte
+	conn net.Conn
+	buf  []byte
+	last string
+
 	servers map[types.ServerNumeric]*server
 
 	usersByClientID map[types.ClientID]*user
@@ -91,8 +93,11 @@ func Connect(config Configuration) (*P10Client, error) {
 		clientName:        config.ClientName,
 		clientDescription: config.ClientDescription,
 
-		conn:    conn,
-		buf:     make([]byte, 1_024),
+		conn: conn,
+
+		buf:  make([]byte, 1_024),
+		last: "",
+
 		servers: map[types.ServerNumeric]*server{},
 
 		usersByClientID: map[types.ClientID]*user{},
@@ -187,6 +192,9 @@ func (c *P10Client) handshake() error {
 func (c *P10Client) Send(m messages.Message) error {
 	c.debugf("sending message", "message", m.String())
 
+	// TODO: We need to handle the messages we're sending, e.g. to update
+	// channels, users, etc., just as we would received ones.
+
 	_, err := c.conn.Write([]byte(m.String() + "\r\n"))
 	if err != nil {
 		return fmt.Errorf("couldn't send message: %w", err)
@@ -206,11 +214,18 @@ func (c *P10Client) receive() ([]messages.Message, error) {
 	bs := c.buf[:n]
 	c.debugf("received bytes", "bytes", string(bs))
 
-	lines := lineBreak.Split(string(bs), -1)
+	lines := lineBreak.Split(c.last+string(bs), -1)
 
 	ms := make([]messages.Message, len(lines))
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
+		if i == len(lines)-1 {
+			c.last = line
+			if line != "" {
+				break
+			}
+		}
+
 		if line == "" {
 			continue
 		}
