@@ -5,7 +5,7 @@ import (
 )
 
 func (c *P10Client) handleBurst(m *messages.Burst) {
-	c.debugf("received BURST; updating channels", "channel", m.Channel)
+	c.debugf("saw BURST; updating channels", "channel", m.Channel)
 
 	ch := c.channel(m.Channel)
 

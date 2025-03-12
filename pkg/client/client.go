@@ -144,25 +144,28 @@ func (c *P10Client) eventLoop() {
 		}
 
 		for _, m := range ms {
-			switch m := m.(type) {
-			case *messages.Burst:
-				c.handleBurst(m)
-			case *messages.EndOfBurst:
-				c.handleEndOfBurst(m)
-			case *messages.Join:
-				c.handleJoin(m)
-			case *messages.Nick:
-				c.handleNick(m)
-			case *messages.Ping:
-				c.handlePing(m)
-			case *messages.Server:
-				c.handleServer(m)
-			case *messages.UserMode:
-				c.handleUserMode(m)
-			}
-
+			c.handleMessage(m)
 			c.notifyObservers(Event{Type: MessageEvent, Message: m})
 		}
+	}
+}
+
+func (c *P10Client) handleMessage(m messages.Message) {
+	switch m := m.(type) {
+	case *messages.Burst:
+		c.handleBurst(m)
+	case *messages.EndOfBurst:
+		c.handleEndOfBurst(m)
+	case *messages.Join:
+		c.handleJoin(m)
+	case *messages.Nick:
+		c.handleNick(m)
+	case *messages.Ping:
+		c.handlePing(m)
+	case *messages.Server:
+		c.handleServer(m)
+	case *messages.UserMode:
+		c.handleUserMode(m)
 	}
 }
 
@@ -192,13 +195,14 @@ func (c *P10Client) handshake() error {
 func (c *P10Client) Send(m messages.Message) error {
 	c.debugf("sending message", "message", m.String())
 
-	// TODO: We need to handle the messages we're sending, e.g. to update
-	// channels, users, etc., just as we would received ones.
-
 	_, err := c.conn.Write([]byte(m.String() + "\r\n"))
 	if err != nil {
 		return fmt.Errorf("couldn't send message: %w", err)
 	}
+
+	// TODO: There are probably some message types we don't want to handle on
+	// send? E.g. infinite loops if we get this wrong, etc.
+	c.handleMessage(m)
 
 	return nil
 }

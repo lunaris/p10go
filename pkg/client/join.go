@@ -6,11 +6,11 @@ import (
 )
 
 func (c *P10Client) handleJoin(m *messages.Join) {
-	c.debugf("received JOIN; updating channels", "client", m.ClientID, "channel", m.Channel)
+	c.debugf("saw JOIN; updating channels", "client", m.ClientID, "channel", m.Channel)
 
 	u := c.usersByClientID[m.ClientID]
 	if u == nil {
-		c.debugf("received JOIN for unknown user", "client", m.ClientID)
+		c.debugf("saw JOIN for unknown user", "client", m.ClientID)
 		return
 	}
 

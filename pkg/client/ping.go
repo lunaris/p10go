@@ -5,6 +5,6 @@ import (
 )
 
 func (c *P10Client) handlePing(m *messages.Ping) {
-	c.debugf("received PING; sending PONG", "source", m.Source)
+	c.debugf("saw PING; sending PONG", "source", m.Source)
 	c.Send(&messages.Pong{Source: "QQ", Target: m.Source})
 }
