@@ -6,7 +6,7 @@ import (
 
 func (c *P10Client) handleServer(m *messages.Server) {
 	c.debugf("received SERVER; updating servers", "numeric", m.Numeric)
-	c.servers[m.Numeric] = &Server{
+	c.servers[m.Numeric] = &server{
 		Numeric: m.Numeric,
 	}
 }

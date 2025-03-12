@@ -24,11 +24,14 @@ type P10Client struct {
 	clientName        string
 	clientDescription string
 
-	conn     net.Conn
-	buf      []byte
-	servers  map[types.ServerNumeric]*Server
-	clients  map[types.ClientID]*Client
-	channels map[string]*Channel
+	conn    net.Conn
+	buf     []byte
+	servers map[types.ServerNumeric]*server
+
+	usersByClientID map[types.ClientID]*user
+	usersByNick     map[string]*user
+
+	channels map[string]*channel
 
 	observers []Observer
 
@@ -53,13 +56,8 @@ type Observer interface {
 	OnEvent(*P10Client, Event)
 }
 
-type Server struct {
+type server struct {
 	Numeric types.ServerNumeric
-}
-
-type Client struct {
-	ID   types.ClientID
-	Nick string
 }
 
 type EventType string
@@ -82,11 +80,6 @@ func Connect(config Configuration) (*P10Client, error) {
 		return nil, fmt.Errorf("couldn't connect to server: %w", err)
 	}
 
-	buf := make([]byte, 1024)
-	servers := make(map[types.ServerNumeric]*Server)
-	clients := make(map[types.ClientID]*Client)
-	channels := make(map[string]*Channel)
-
 	c := &P10Client{
 		context: config.Context,
 		logger:  config.Logger,
@@ -98,11 +91,14 @@ func Connect(config Configuration) (*P10Client, error) {
 		clientName:        config.ClientName,
 		clientDescription: config.ClientDescription,
 
-		conn:     conn,
-		buf:      buf,
-		servers:  servers,
-		clients:  clients,
-		channels: channels,
+		conn:    conn,
+		buf:     make([]byte, 1_024),
+		servers: map[types.ServerNumeric]*server{},
+
+		usersByClientID: map[types.ClientID]*user{},
+		usersByNick:     map[string]*user{},
+
+		channels: map[string]*channel{},
 
 		observers: config.Observers,
 
@@ -144,6 +140,8 @@ func (c *P10Client) eventLoop() {
 
 		for _, m := range ms {
 			switch m := m.(type) {
+			case *messages.Burst:
+				c.handleBurst(m)
 			case *messages.EndOfBurst:
 				c.handleEndOfBurst(m)
 			case *messages.Join:
@@ -154,6 +152,8 @@ func (c *P10Client) eventLoop() {
 				c.handlePing(m)
 			case *messages.Server:
 				c.handleServer(m)
+			case *messages.UserMode:
+				c.handleUserMode(m)
 			}
 
 			c.notifyObservers(Event{Type: MessageEvent, Message: m})
@@ -235,14 +235,4 @@ func (c *P10Client) notifyObservers(e Event) {
 	for _, o := range c.observers {
 		o.OnEvent(c, e)
 	}
-}
-
-func (c *P10Client) Channel(name string) *Channel {
-	ch, ok := c.channels[name]
-	if !ok {
-		ch = NewChannel(name)
-		c.channels[name] = ch
-	}
-
-	return ch
 }

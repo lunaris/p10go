@@ -5,9 +5,8 @@ import (
 )
 
 func (c *P10Client) handleNick(m *messages.Nick) {
-	c.debugf("received NICK; updating clients", "id", m.ClientID, "nick", m.Nick)
-	c.clients[m.ClientID] = &Client{
-		ID:   m.ClientID,
-		Nick: m.Nick,
-	}
+	c.debugf("received NICK; updating users", "id", m.ClientID, "nick", m.Nick)
+
+	u := c.addUser(m.ClientID, m.Nick)
+	*u.modes = m.UserModes
 }

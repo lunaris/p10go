@@ -296,6 +296,44 @@ func ParseUserModes(s string) (UserModes, error) {
 	return modes, nil
 }
 
+func (m *UserModes) Add(other UserModes) {
+	m.Deaf = m.Deaf || other.Deaf
+	m.Debug = m.Debug || other.Debug
+	m.SetHost = m.SetHost || other.SetHost
+	m.NoIdle = m.NoIdle || other.NoIdle
+	m.Invisible = m.Invisible || other.Invisible
+	m.ChannelService = m.ChannelService || other.ChannelService
+	m.NoChannels = m.NoChannels || other.NoChannels
+	m.LocalOp = m.LocalOp || other.LocalOp
+	m.Op = m.Op || other.Op
+	m.Paranoid = m.Paranoid || other.Paranoid
+	m.AccountOnly = m.AccountOnly || other.AccountOnly
+	m.Account = m.Account || other.Account
+	m.ServerNotices = m.ServerNotices || other.ServerNotices
+	m.WallOps = m.WallOps || other.WallOps
+	m.ExtraOp = m.ExtraOp || other.ExtraOp
+	m.HiddenHost = m.HiddenHost || other.HiddenHost
+}
+
+func (m *UserModes) Remove(other UserModes) {
+	m.Deaf = m.Deaf && !other.Deaf
+	m.Debug = m.Debug && !other.Debug
+	m.SetHost = m.SetHost && !other.SetHost
+	m.NoIdle = m.NoIdle && !other.NoIdle
+	m.Invisible = m.Invisible && !other.Invisible
+	m.ChannelService = m.ChannelService && !other.ChannelService
+	m.NoChannels = m.NoChannels && !other.NoChannels
+	m.LocalOp = m.LocalOp && !other.LocalOp
+	m.Op = m.Op && !other.Op
+	m.Paranoid = m.Paranoid && !other.Paranoid
+	m.AccountOnly = m.AccountOnly && !other.AccountOnly
+	m.Account = m.Account && !other.Account
+	m.ServerNotices = m.ServerNotices && !other.ServerNotices
+	m.WallOps = m.WallOps && !other.WallOps
+	m.ExtraOp = m.ExtraOp && !other.ExtraOp
+	m.HiddenHost = m.HiddenHost && !other.HiddenHost
+}
+
 func (m UserModes) String() string {
 	var sb strings.Builder
 
