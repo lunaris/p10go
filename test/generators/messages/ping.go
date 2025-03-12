@@ -11,4 +11,3 @@ var GeneratedPing = rapid.Custom(func(t *rapid.T) *messages.Ping {
 		Source: typeGenerators.GeneratedServerNumeric.Draw(t, "Source"),
 	}
 })
-

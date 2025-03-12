@@ -11,6 +11,8 @@ import (
 )
 
 func TestPassMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedPass.Draw(t, "ServerNumeric")
 
@@ -22,6 +24,8 @@ func TestPassMessagesRoundtrip(t *testing.T) {
 }
 
 func TestServerMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedServer.Draw(t, "Server")
 
@@ -33,6 +37,8 @@ func TestServerMessagesRoundtrip(t *testing.T) {
 }
 
 func TestNickMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedNick.Draw(t, "Nick")
 
@@ -44,6 +50,8 @@ func TestNickMessagesRoundtrip(t *testing.T) {
 }
 
 func TestBurstMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedBurst.Draw(t, "Burst")
 
@@ -55,6 +63,8 @@ func TestBurstMessagesRoundtrip(t *testing.T) {
 }
 
 func TestPingMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedPing.Draw(t, "Ping")
 
@@ -66,6 +76,8 @@ func TestPingMessagesRoundtrip(t *testing.T) {
 }
 
 func TestPongMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedPong.Draw(t, "Pong")
 
@@ -77,6 +89,8 @@ func TestPongMessagesRoundtrip(t *testing.T) {
 }
 
 func TestJoinMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedJoin.Draw(t, "Join")
 
@@ -88,6 +102,8 @@ func TestJoinMessagesRoundtrip(t *testing.T) {
 }
 
 func TestChannelModeMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedChannelMode.Draw(t, "ChannelMode")
 
@@ -101,6 +117,8 @@ func TestChannelModeMessagesRoundtrip(t *testing.T) {
 }
 
 func TestUserModeMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedUserMode.Draw(t, "UserMode")
 
@@ -114,6 +132,8 @@ func TestUserModeMessagesRoundtrip(t *testing.T) {
 }
 
 func TestPrivmsgMessagesRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
 		expected := messageGenerators.GeneratedPrivmsg.Draw(t, "Privmsg")
 

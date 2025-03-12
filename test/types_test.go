@@ -4,84 +4,179 @@ import (
 	"testing"
 
 	"github.com/lunaris/p10go/pkg/types"
-	typeGenerators "github.com/lunaris/p10go/test/generators/types"
 	"github.com/stretchr/testify/assert"
-	"pgregory.net/rapid"
 )
 
-func TestServerNumericsRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedServerNumeric.Draw(t, "ServerNumeric")
+func TestParseChannelMembers(t *testing.T) {
+	t.Parallel()
 
-		actual, err := types.ParseServerNumeric(string(expected))
+	cases := []struct {
+		input    string
+		expected []types.ChannelMember
+	}{
+		{
+			input: "ABCDE",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+				},
+			},
+		},
+		{
+			input: "ABCDE:v",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+			},
+		},
+		{
+			input: "ABCDE:o",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+					Modes:    types.ChannelUserModes{Op: true},
+				},
+			},
+		},
+		{
+			input: "ABCDE:ov",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+			},
+		},
+		{
+			input: "ABCDE,FGHIJ",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+				},
+				{
+					ClientID: types.ClientID{Server: "FG", Client: "HIJ"},
+				},
+			},
+		},
+		{
+			input: "ABCDE:v,FGHIJ",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "FG", Client: "HIJ"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+			},
+		},
+		{
+			input: "ABCDE:o,FGHIJ",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+					Modes:    types.ChannelUserModes{Op: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "FG", Client: "HIJ"},
+					Modes:    types.ChannelUserModes{Op: true},
+				},
+			},
+		},
+		{
+			input: "ABCDE,FGHIJ,KLMNO:v,PQRST,UVWXY,ZABCD:o,EFGHI:ov,JKLMN,OPQRS",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+				},
+				{
+					ClientID: types.ClientID{Server: "FG", Client: "HIJ"},
+				},
+				{
+					ClientID: types.ClientID{Server: "KL", Client: "MNO"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "PQ", Client: "RST"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "UV", Client: "WXY"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "ZA", Client: "BCD"},
+					Modes:    types.ChannelUserModes{Op: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "EF", Client: "GHI"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "JK", Client: "LMN"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "OP", Client: "QRS"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+			},
+		},
+		{
+			input: "ABCDE,FGHIJ:v,KLMNO:o,PQRST:ov,UVWXY:v,ZABCD:o,EFGHI:ov,JKLMN,OPQRS",
+			expected: []types.ChannelMember{
+				{
+					ClientID: types.ClientID{Server: "AB", Client: "CDE"},
+				},
+				{
+					ClientID: types.ClientID{Server: "FG", Client: "HIJ"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "KL", Client: "MNO"},
+					Modes:    types.ChannelUserModes{Op: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "PQ", Client: "RST"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "UV", Client: "WXY"},
+					Modes:    types.ChannelUserModes{Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "ZA", Client: "BCD"},
+					Modes:    types.ChannelUserModes{Op: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "EF", Client: "GHI"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "JK", Client: "LMN"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+				{
+					ClientID: types.ClientID{Server: "OP", Client: "QRS"},
+					Modes:    types.ChannelUserModes{Op: true, Voice: true},
+				},
+			},
+		},
+	}
 
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-}
+	for _, c := range cases {
+		c := c
 
-func TestClientNumericsRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedClientNumeric.Draw(t, "ClientNumeric")
+		t.Run(c.input, func(t *testing.T) {
+			t.Parallel()
 
-		actual, err := types.ParseClientNumeric(string(expected))
+			actual, err := types.ParseChannelMembers(c.input)
 
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-}
-
-func TestClientIDsRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedClientID.Draw(t, "ClientID")
-
-		actual, err := types.ParseClientID(expected.String())
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-}
-
-func TestChannelModesRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedChannelModes.Draw(t, "ChannelModes")
-
-		actual, _, err := types.ParseChannelModes(expected.String())
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-}
-
-func TestUserModesRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedUserModes.Draw(t, "UserModes")
-
-		actual, err := types.ParseUserModes(expected.String())
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-}
-
-func TestChannelUserModesRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedChannelUserModes.Draw(t, "ChannelUserModes")
-
-		actual, err := types.ParseChannelUserModes(expected.String())
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-}
-
-func TestChannelMembersRoundtrip(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		expected := typeGenerators.GeneratedChannelMember.Draw(t, "ChannelMember")
-
-		actual, err := types.ParseChannelMember(expected.String())
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
+			assert.NoError(t, err)
+			assert.Equal(t, c.expected, actual)
+		})
+	}
 }

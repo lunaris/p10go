@@ -1,7 +1,10 @@
 package messages
 
 import (
+	"slices"
+
 	"github.com/lunaris/p10go/pkg/messages"
+	"github.com/lunaris/p10go/pkg/types"
 	typeGenerators "github.com/lunaris/p10go/test/generators/types"
 	"pgregory.net/rapid"
 )
@@ -20,6 +23,9 @@ var GeneratedBurst = rapid.Custom(func(t *rapid.T) *messages.Burst {
 		channelKey = rapid.StringMatching(`^[A-Za-z0-9-]{1,32}$`).Draw(t, "ChannelKey")
 	}
 
+	members := rapid.SliceOfN(typeGenerators.GeneratedChannelMember, 1, 10).Draw(t, "Members")
+	slices.SortFunc(members, types.ComparingChannelMembersByModes)
+
 	return &messages.Burst{
 		ServerNumeric:    typeGenerators.GeneratedServerNumeric.Draw(t, "ServerNumeric"),
 		Channel:          rapid.StringMatching(`^[#][A-Za-z][A-Za-z0-9-]{1,31}$`).Draw(t, "Channel"),
@@ -27,7 +33,7 @@ var GeneratedBurst = rapid.Custom(func(t *rapid.T) *messages.Burst {
 		ChannelModes:     channelModes,
 		ChannelLimit:     channelLimit,
 		ChannelKey:       channelKey,
-		Members:          rapid.SliceOfN(typeGenerators.GeneratedChannelMember, 1, 10).Draw(t, "Members"),
+		Members:          members,
 		Bans:             rapid.SliceOfN(GeneratedBan, 0, 10).Draw(t, "Bans"),
 	}
 })

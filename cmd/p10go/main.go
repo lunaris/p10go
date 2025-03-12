@@ -56,7 +56,7 @@ func main() {
 
 		Users: users,
 	})
-  osO := operserv.NewOperserv(operserv.Configuration{
+	osO := operserv.NewOperserv(operserv.Configuration{
 		Logger: logger,
 
 		ClientID: types.ClientID{
@@ -67,7 +67,7 @@ func main() {
 		Info:     "Operserv",
 		MaskUser: "O",
 		MaskHost: "services.p10.localhost",
-  })
+	})
 
 	c, err := client.Connect(client.Configuration{
 		Context: context.Background(),

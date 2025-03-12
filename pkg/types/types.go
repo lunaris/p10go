@@ -431,13 +431,46 @@ func (m ChannelMember) String() string {
 	return fmt.Sprintf("%s:%s", clientID, modes)
 }
 
+func ComparingChannelMembersByModes(x ChannelMember, y ChannelMember) int {
+	xModes := 0
+	if x.Modes.Op {
+		xModes += 2
+	}
+	if x.Modes.Voice {
+		xModes += 1
+	}
+
+	yModes := 0
+	if y.Modes.Op {
+		yModes += 2
+	}
+	if y.Modes.Voice {
+		yModes += 1
+	}
+
+	return xModes - yModes
+}
+
 func ParseChannelMembers(s string) ([]ChannelMember, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+
 	parts := strings.Split(s, ",")
+
+	lastModes := ChannelUserModes{}
+
 	members := make([]ChannelMember, len(parts))
 	for i, part := range parts {
 		member, err := ParseChannelMember(part)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't parse channel user: %w", err)
+		}
+
+		if !member.Modes.Op && !member.Modes.Voice {
+			member.Modes = lastModes
+		} else {
+			lastModes = member.Modes
 		}
 
 		members[i] = member

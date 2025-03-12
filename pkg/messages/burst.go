@@ -2,6 +2,7 @@ package messages
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -110,9 +111,21 @@ func (b *Burst) String() string {
 		}
 	}
 
+	sortedMembers := make([]types.ChannelMember, len(b.Members))
+	copy(sortedMembers, b.Members)
+	slices.SortFunc(sortedMembers, types.ComparingChannelMembersByModes)
+
 	members := ""
-	for i, m := range b.Members {
+	lastModes := types.ChannelUserModes{}
+
+	for i, m := range sortedMembers {
 		if i > 0 {
+			if m.Modes == lastModes {
+				m.Modes = types.ChannelUserModes{}
+			} else {
+				lastModes = m.Modes
+			}
+
 			members += ","
 		}
 		members += m.String()
